@@ -71,7 +71,7 @@ os2eastnorth <- function(GR, hectad=FALSE) {
           array(paste('O', OS, sep=''),dim=c(5,5)),
           array(paste('T', OS, sep=''),dim=c(5,5))))
   
-  OSUK = ostmp[15:3,1:7] # Flip so that the SV square has indices 0,0
+  OSGB = ostmp[15:3,1:7] # Flip so that the SV square has indices 0,0
   OSIR = OS[5:1,1:5] # Flip so that the V square has indices 0,0
   
   tetrad = array(c('A','B','C','D','E','F','G','H','I','J','K','L','M','N','P','Q','R','S','T','U','V','W','X','Y','Z'),dim=c(5,5))
@@ -136,8 +136,8 @@ os2eastnorth <- function(GR, hectad=FALSE) {
   
   # Add on coordinates for the 100km grid letter
   pref = array(NA, dim=c(length(gr.list),2))
-  tmp = match(letter.code[system=='OSGB'],OSUK) # Find letter code position in the matrix OSUK (UK)
-  pref[system=='OSGB', ] = c(floor((tmp-1)/nrow(OSUK)), (tmp-1)%%nrow(OSUK))
+  tmp = match(letter.code[system=='OSGB'],OSGB) # Find letter code position in the matrix OSGB (UK)
+  pref[system=='OSGB', ] = c(floor((tmp-1)/nrow(OSGB)), (tmp-1)%%nrow(OSGB))
 
   tmp = match(letter.code[system=='OSI'],OSIR) # Find letter code position in the matrix OSIR (Ireland)
   pref[system=='OSI',] = c(floor((tmp-1)/nrow(OSIR)), (tmp-1)%%nrow(OSIR))
