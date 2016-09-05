@@ -4,6 +4,9 @@
 # This has been checked against Frescalo output and it agrees
 #
 # Written by Jon Yearsley (jon.yearsley@ucd.ie) 2nd Sept 2016
+# 
+# Modified 
+#   5/9/2016  Allow missing data to be ignored
 
 setwd('/home/jon/MEGA/Jack/Frescalo')
 rm(list=ls())  # Remove all variables from the memory
@@ -39,33 +42,49 @@ min.fun <- function(alpha,f,Phi) {
   return( sum(F^2)/sum(F) - Phi)
 }
 
-frescalo = function(focal_d, speciesList, spLocations) {
+frescalo = function(focal_d, speciesList, spLocations, missing=1) {
 # This function calculates the sampling effort multiplier, alpha, 
 # that would equate sampling effort across all regions
 # This is the main method of Frescalo.
+
+  # Argument missing defines what to do if data in the neighbourhood are missing.
+  # missing = 1 (default) do not proceed with the calculation 
+  # missing = 2 set missing species data to all absences and proceed
   
   focal = focal_d$Target[1]
   
   # Identify species in neighbourhood of focal region 
-  speciesRegional = speciesList[match(focal_d$Hectad, spLocations)]
+  # If data are mssing assign it to the empty species list (last element of speciesList)
+  neighbourhood = match(focal_d$Hectad, spLocations, nomatch=length(speciesList))
+  speciesRegional = speciesList[neighbourhood]
   
-  #    speciesRegional = speciesList[match(as.character(d$Hectad), targets)]
-  # Calculate weights of locations in the neighbourhood
-  weights = focal_d$w/sum(focal_d$w)
+  missingData = neighbourhood==length(speciesList)
+  if (any(missingData) & missing==1) {
+    # Species data missing from a location inthe neighbourhood. Ignore this focal location
+    warning(paste('Removing location ',focal,'. Missing data for locations in the neighbourhood.', sep=''))
 
-  # Create weighted neighbourhood frequencies (checked against Frescalo)
-  frequency = Reduce('+',Map('*',as.list(weights), speciesRegional))  
+    sol = list(root = NA, iter=NA)
+    phi_in = NA
+  } else {
+    # Calculate weights of locations in the neighbourhood
+    weights = focal_d$w/sum(focal_d$w)
   
-  phi_in = sum(frequency^2) / sum(frequency)
+    # Create weighted neighbourhood frequencies (checked against Frescalo)
+    frequency = Reduce('+',Map('*',as.list(weights), speciesRegional))  
+    
+    phi_in = sum(frequency^2) / sum(frequency)
+    
+      # Calculate the multiplier (alpha) that equalises recording effort 
+      alpha.min = 1  # Minimum alpha ( =1 means no correction required)
+      alpha.max = 5
+      # Increase alpha.max until min.fun() becomes positive (i.e. ensure there is a zero)
+      while (min.fun(alpha.max, frequency, Phi)<0) { alpha.max = alpha.max + 5}  
+      # Decrease alpha.min until it becomes negative
+      while (min.fun(alpha.min, frequency, Phi)>0) { alpha.min = alpha.min/2}  
   
-  # Calculate the multiplier (alpha) that equalises recording effort 
-  alpha.max = 5
-  # Increase alpha.max until min.fun() becomes positive (i.e. ensure there is a zero)
-  while (min.fun(alpha.max, frequency, Phi)<0) { alpha.max = alpha.max + 5}  
-
-  # Find sampling-effort multiplier
-  sol=uniroot(min.fun,interval=c(0.01,alpha.max), tol=0.001, frequency, Phi)
-  alpha = sol$root
+    # Find sampling-effort multiplier
+    sol=uniroot(min.fun,interval=c(0.01,alpha.max), tol=0.001, frequency, Phi)
+  }
 
   return(data.frame(location=focal, alpha=sol$root, phi_in=phi_in, iter=sol$iter))
 }
@@ -88,12 +107,14 @@ idx = iter(sSplit)
 speciesList <- foreach(spList = idx, .inorder=T) %do% {
   as.integer(species %in% spList$Species)
 }
+# Add an additional species list where everything is absent 
+speciesList[[length(speciesList)+1]] = rep(0, times=length(species))
 
 # For each focal regional calculate the sampling effort multipler
 dSplit = split(dSub[,1:3], as.factor(dSub$Target))  # Split data up into focal regions
 idx2 = iter(dSplit)
 frescalo.out <- foreach(focal_data = idx2, .inorder=T, .combine='rbind') %dopar% { 
-  frescalo(focal_data, speciesList, spLocations)
+  frescalo(focal_data, speciesList, spLocations, missing=2)
 }
 
 
