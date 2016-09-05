@@ -83,7 +83,7 @@ frescalo = function(focal_d, speciesList, spLocations, missing=1) {
       while (min.fun(alpha.min, frequency, Phi)>0) { alpha.min = alpha.min/2}  
   
     # Find sampling-effort multiplier
-    sol=uniroot(min.fun,interval=c(0.01,alpha.max), tol=0.001, frequency, Phi)
+    sol=uniroot(min.fun,interval=c(alpha.min, alpha.max), tol=0.001, frequency, Phi)
   }
 
   return(data.frame(location=focal, alpha=sol$root, phi_in=phi_in, iter=sol$iter))
